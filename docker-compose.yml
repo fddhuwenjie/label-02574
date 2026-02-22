@@ -1,0 +1,57 @@
+services:
+  chat-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    container_name: chat-server
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_TYPE=${DATABASE_TYPE:-sqlite}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/chat.db}
+      - PORT=8000
+      - TUNNEL_TYPE=${TUNNEL_TYPE:-none}
+      - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN:-}
+    volumes:
+      - chat-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - chat-network
+
+  # 可选：PostgreSQL数据库
+  # 取消注释以使用PostgreSQL替代SQLite
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: chat-postgres
+  #   environment:
+  #     - POSTGRES_USER=chatuser
+  #     - POSTGRES_PASSWORD=chatpass
+  #     - POSTGRES_DB=chatdb
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - chat-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U chatuser -d chatdb"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  chat-data:
+  # postgres-data:
+
+networks:
+  chat-network:
+    driver: bridge
