@@ -2,7 +2,21 @@
 
 ## How to Run
 
-### Docker 启动（推荐）
+### 一键启动（推荐）
+
+```bash
+# 赋予执行权限并启动
+chmod +x start.sh
+./start.sh
+```
+
+脚本会自动：
+1. 检测并安装 Docker（如未安装）
+2. 构建并启动服务
+3. 运行 API 测试验证
+4. 输出可用的 WebSocket 测试命令
+
+### Docker 启动
 
 ```bash
 # 构建并启动
