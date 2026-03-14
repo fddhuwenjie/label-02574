@@ -56,11 +56,11 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## 测试账号
 
-| 用户名 | 密码 |
-|--------|------|
-| admin | admin123 |
-| user1 | password1 |
-| user2 | password2 |
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| admin | admin123 | 管理员 |
+| user1 | password1 | 普通用户 |
+| user2 | password2 | 普通用户 |
 
 ## 题目内容
 
@@ -75,6 +75,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - WebSocket 实时通信
 - 群聊和私聊功能
 - 消息撤回（2分钟内）
+- 管理员权限（撤回任意消息、用户管理、封禁、踢人）
 - 消息加密传输（AES-256-GCM / RSA）
 - 用户名密码认证
 - 多数据库支持（SQLite/PostgreSQL）
@@ -125,12 +126,14 @@ Authorization: Basic base64(username:password)
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
   "username": "admin",
+  "role": "admin",
   "message": "登录成功"
 }
 ```
 
 错误码：
 - 401: 用户名或密码错误
+- 403: 账号已被封禁
 
 ### 用户相关
 
@@ -205,7 +208,7 @@ Authorization: Basic base64(username:password)
 
 #### POST /messages/revoke - 撤回消息
 
-撤回自己发送的消息（2分钟内有效）。
+撤回消息。普通用户限 2 分钟内撤回自己的消息，管理员可撤回任意消息且不受时间限制。
 
 参数：
 - `token`: 认证令牌（必需）
@@ -226,8 +229,8 @@ Authorization: Basic base64(username:password)
 ```
 
 错误码：
-- 400: 消息已撤回 / 超过撤回时间限制
-- 403: 只能撤回自己的消息
+- 400: 消息已撤回 / 超过撤回时间限制（普通用户）
+- 403: 只能撤回自己的消息（普通用户）
 - 404: 消息不存在
 
 ### 加密相关
@@ -243,6 +246,65 @@ Authorization: Basic base64(username:password)
   "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 }
 ```
+
+### 管理员接口
+
+以下接口需要管理员权限（role=admin），所有请求需携带 `token` 参数。
+
+#### GET /admin/users - 获取所有用户
+
+响应：
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "role": "admin",
+      "is_banned": false,
+      "created_at": "2024-01-15T10:00:00"
+    }
+  ]
+}
+```
+
+#### PUT /admin/users/{username}/ban - 封禁/解封用户
+
+切换用户封禁状态。被封禁的用户无法登录和连接 WebSocket。
+
+响应：
+```json
+{
+  "message": "user1 已封禁",
+  "is_banned": true
+}
+```
+
+#### DELETE /admin/users/{username} - 删除用户
+
+永久删除指定用户。
+
+#### PUT /admin/users/{username}/role - 设置用户角色
+
+参数：
+- `role`: `admin` 或 `user`
+
+响应：
+```json
+{
+  "message": "user1 角色已设为 admin",
+  "role": "admin"
+}
+```
+
+#### POST /admin/kick/{username} - 踢用户下线
+
+强制关闭用户的 WebSocket 连接并广播通知。
+
+错误码（以上接口通用）：
+- 401: 无效的 token
+- 403: 需要管理员权限
+- 404: 用户不存在
 
 ### WebSocket 聊天
 
@@ -696,14 +758,20 @@ pytest -v --cov=app --cov-report=term-missing
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py      # FastAPI 应用入口
-│   ├── auth.py      # 认证模块
-│   ├── chat.py      # WebSocket 聊天管理
-│   ├── crypto.py    # 加密模块
-│   ├── database.py  # 数据库配置
-│   ├── models.py    # 数据模型
-│   └── tunnel.py    # 穿透服务
-├── tests/           # 测试文件
+│   ├── main.py        # FastAPI 应用入口、lifespan、中间件
+│   ├── schemas.py     # Pydantic 请求/响应模型
+│   ├── auth.py        # 认证模块（Token、密码、权限校验）
+│   ├── chat.py        # WebSocket 连接管理器
+│   ├── crypto.py      # 加密模块（AES-256-GCM / RSA）
+│   ├── database.py    # 数据库配置
+│   ├── models.py      # SQLAlchemy 数据模型
+│   ├── tunnel.py      # 内外网穿透服务
+│   └── routes/
+│       ├── auth_routes.py  # 注册、登录路由
+│       ├── messages.py     # 消息查询、撤回、加密密钥路由
+│       ├── admin.py        # 管理员接口（用户管理、封禁、踢人）
+│       └── websocket.py    # WebSocket 聊天及消息处理
+├── tests/             # 测试文件
 ├── Dockerfile
 └── requirements.txt
 ```

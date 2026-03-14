@@ -119,18 +119,39 @@ def authenticate_user(
             detail="用户名或密码错误",
             headers={"WWW-Authenticate": "Basic"},
         )
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已被封禁，请联系管理员",
+        )
     return user
 
 
 def init_test_users(db: Session):
     """初始化测试用户（使用bcrypt）"""
     test_users = [
-        ("admin", "admin123"),
-        ("user1", "password1"),
-        ("user2", "password2"),
+        ("admin", "admin123", "admin"),
+        ("user1", "password1", "user"),
+        ("user2", "password2", "user"),
     ]
-    for username, password in test_users:
-        if not db.query(User).filter(User.username == username).first():
-            user = User(username=username, password_hash=hash_password(password))
+    for username, password, role in test_users:
+        existing = db.query(User).filter(User.username == username).first()
+        if not existing:
+            user = User(username=username, password_hash=hash_password(password), role=role)
             db.add(user)
+        elif existing.role != role:
+            existing.role = role
     db.commit()
+
+
+def get_user_role(username: str, db: Session) -> str:
+    """获取用户角色"""
+    user = db.query(User).filter(User.username == username).first()
+    return user.role if user else "user"
+
+
+def require_admin(username: str, db: Session):
+    """校验管理员权限，非管理员抛出403"""
+    user = db.query(User).filter(User.username == username).first()
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")

@@ -5,11 +5,13 @@ from .database import Base
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(256), nullable=False)
+    role = Column(String(20), default="user", nullable=False)  # admin / user
     public_key = Column(Text, nullable=True)  # 用户公钥，用于端到端加密
+    is_banned = Column(Boolean, default=False)  # 是否被封禁
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Message(Base):
