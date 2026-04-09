@@ -92,13 +92,15 @@ class ConnectionManager:
             "time": datetime.utcnow().strftime("%H:%M:%S")
         })
     
-    async def notify_revoke_private(self, message_id: str, sender: str, recipient: str):
+    async def notify_revoke_private(self, message_id: str, sender: str, recipient: str, revoked_by: str = None):
         """通知私聊消息撤回"""
+        if revoked_by is None:
+            revoked_by = sender
         message = {
             "type": "revoke",
             "message_id": message_id,
-            "username": sender,
-            "content": f"{sender} 撤回了一条私聊消息",
+            "username": revoked_by,
+            "content": f"{revoked_by} 撤回了一条私聊消息",
             "time": datetime.utcnow().strftime("%H:%M:%S")
         }
         await self.send_personal(sender, message)
