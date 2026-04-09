@@ -192,6 +192,6 @@ async def _handle_revoke(username: str, msg_data: dict, db: Session, websocket: 
     revoke_by = username if message.username == username else f"管理员{username}"
 
     if message.is_private:
-        await manager.notify_revoke_private(message_id, revoke_by, message.recipient)
+        await manager.notify_revoke_private(message_id, revoke_by, message.username, message.recipient)
     else:
         await manager.broadcast_revoke(message_id, revoke_by)
