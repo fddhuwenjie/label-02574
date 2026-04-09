@@ -92,17 +92,26 @@ class ConnectionManager:
             "time": datetime.utcnow().strftime("%H:%M:%S")
         })
     
-    async def notify_revoke_private(self, message_id: str, sender: str, recipient: str):
-        """通知私聊消息撤回"""
+    async def notify_revoke_private(self, message_id: str, revoke_by: str, 
+                                    original_sender: str, original_recipient: str):
+        """通知私聊消息撤回
+        
+        Args:
+            message_id: 消息ID
+            revoke_by: 执行撤回操作的用户名
+            original_sender: 原始消息的发送者
+            original_recipient: 原始消息的接收者
+        """
         message = {
             "type": "revoke",
             "message_id": message_id,
-            "username": sender,
-            "content": f"{sender} 撤回了一条私聊消息",
+            "username": revoke_by,
+            "content": f"{revoke_by} 撤回了一条私聊消息",
             "time": datetime.utcnow().strftime("%H:%M:%S")
         }
-        await self.send_personal(sender, message)
-        await self.send_personal(recipient, message)
+        # 私聊撤回需要通知对话双方（发送者和接收者）
+        await self.send_personal(original_sender, message)
+        await self.send_personal(original_recipient, message)
     
     def get_online_users(self) -> list:
         return list(self.active_connections.keys())

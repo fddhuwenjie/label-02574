@@ -192,6 +192,12 @@ async def _handle_revoke(username: str, msg_data: dict, db: Session, websocket: 
     revoke_by = username if message.username == username else f"管理员{username}"
 
     if message.is_private:
-        await manager.notify_revoke_private(message_id, revoke_by, message.recipient)
+        # 私聊撤回需要通知对话双方：原始发送者和原始接收者
+        await manager.notify_revoke_private(
+            message_id, 
+            revoke_by, 
+            message.username,  # 原始发送者
+            message.recipient  # 原始接收者
+        )
     else:
         await manager.broadcast_revoke(message_id, revoke_by)
